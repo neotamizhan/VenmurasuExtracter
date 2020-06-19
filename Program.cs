@@ -72,8 +72,45 @@ namespace VenmurasuExtracter
         };
 
         static void Main(string[] args)
+        { 
+            EnrichData(jmFile: @"e:\venmurasu\jm_data.json", vmFile: @"e:\venmurasu\vm_data.json");
+        }
+
+        static void EnrichData(string jmFile, string vmFile)
         {
-           GetAllChapterLinks();
+            var vmJson = File.ReadAllText(vmFile);
+            var jmJson = File.ReadAllText(jmFile);
+
+            var vmEntries = JsonSerializer.Deserialize<List<Entry>>(vmJson, new JsonSerializerOptions { Encoder = JavaScriptEncoder.Create(UnicodeRanges.All) });
+            var jmEntries = JsonSerializer.Deserialize<List<Entry>>(jmJson, new JsonSerializerOptions {Encoder = JavaScriptEncoder.Create(UnicodeRanges.All)});
+            var entries = new List<Entry>();
+
+            vmEntries.ForEach(vm => vm.novelno = vm.novelno + 1);
+            foreach (var vmEntry in vmEntries)
+            {
+                var jmEntry =
+                    jmEntries.FirstOrDefault(jm => jm.novelno == vmEntry.novelno && jm.chapter == vmEntry.chapter);
+
+                if (jmEntry == null)
+                    continue;
+                
+                vmEntry.vmin_url = vmEntry.url;
+                vmEntry.jmin_url = jmEntry.url;
+                vmEntry.url = string.Empty;
+                entries.Add(vmEntry);
+            }
+
+            Console.WriteLine($"{jmEntries.Count} ## {vmEntries.Count}");
+
+            var data = JsonSerializer.Serialize(
+                entries,
+                typeof(List<Entry>),
+                new JsonSerializerOptions
+                {
+                    Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+                    WriteIndented = true
+                });
+            File.WriteAllText(@"e:\venmurasu\combined_data.json", data, Encoding.UTF8);
         }
 
         static void GetAllChapterHtml()
